@@ -1,0 +1,35 @@
+# Connect with Exchange Online
+# Get all mailboxes in the organization
+$mailboxes = Get-Mailbox -ResultSize Unlimited
+$totalMailboxes = $mailboxes.Count
+$processedMailboxes = 0
+
+# Initialize an empty array to store results
+$results = @()
+
+# Iterate through each mailbox
+foreach ($mailbox in $mailboxes) {
+    $mailboxName = $mailbox.DisplayName
+    $mailboxEmailAddress = $mailbox.PrimarySmtpAddress
+    
+    # Query unread emails for the current mailbox's Inbox
+    $unreadCount = (Get-MailboxFolderStatistics -Identity $mailboxEmailAddress -FolderScope Inbox | Where-Object {$_.FolderType -eq 'Inbox'}).UnreadItemCount
+    
+    # Add mailbox information and unread count to results array
+    $result = New-Object PSObject -Property @{
+        DisplayName = $mailboxName
+        EmailAddress = $mailboxEmailAddress
+        UnreadEmailCount = $unreadCount
+    }
+    $results += $result
+    
+    # Update status tracker
+    $processedMailboxes++
+    Write-Progress -Activity "Processing Mailboxes" -Status "Processed: $processedMailboxes of $totalMailboxes mailboxes" -PercentComplete (($processedMailboxes / $totalMailboxes) * 100)
+}
+
+# Output results to CSV
+$results | Export-Csv -Path "UnreadEmailReport.csv" -NoTypeInformation
+
+# Remove Exchange session
+Remove-PSSession $Session
